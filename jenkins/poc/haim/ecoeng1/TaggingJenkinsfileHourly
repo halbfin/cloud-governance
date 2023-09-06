@@ -1,4 +1,4 @@
-account = ['partnerlab']
+account = ['partnerlab', 'coreos-training']
 pipeline {
     options {
         disableConcurrentBuilds()
@@ -15,6 +15,7 @@ pipeline {
         account_name = "appeng"
         contact1 = "ebattat@redhat.com"
         contact2 = "athiruma@redhat.com"
+        contact3 = "hhalbfin@redhat.com"
     }
     stages {
         stage('Checkout') { // Checkout (git clone ...) the projects repository
