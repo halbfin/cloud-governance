@@ -1,4 +1,4 @@
-account = ['partnerlab','coreos-training']
+account = ['partnerlab']
 pipeline {
     options {
         disableConcurrentBuilds()
@@ -11,10 +11,14 @@ pipeline {
         }
     }
     environment {
+        AWS_IAM_USER_SPREADSHEET_ID = credentials('cloud-governance-aws-iam-user-spreadsheet-id')
+        GOOGLE_APPLICATION_CREDENTIALS = credentials('cloud-governance-google-application-credentials')
         LDAP_HOST_NAME = credentials('cloud-governance-ldap-host-name')
-        account_name = "appeng"
+        ES_HOST = credentials('haim-cloud-governance-elasticsearch-url')
+        ES_PORT = credentials('haim-cloud-governance-elasticsearch-port')
         contact1 = "ebattat@redhat.com"
         contact2 = "athiruma@redhat.com"
+        contact3 = "hhalbfin@redhat.com"
     }
     stages {
         stage('Checkout') { // Checkout (git clone ...) the projects repository
@@ -27,7 +31,7 @@ pipeline {
                  sh '''if [[ "$(podman images -q quay.io/ebattat/cloud-governance 2> /dev/null)" != "" ]]; then podman rmi -f $(podman images -q quay.io/ebattat/cloud-governance 2> /dev/null); fi'''
             }
         }
-        stage('Run Tagging Cluster & Non-Cluster') {
+        stage('Run Policies the Cost Policies') {
             steps {
                  script {
                     for (int i = 0; i < account.size(); ++i) {
@@ -36,7 +40,22 @@ pipeline {
                                         string(credentialsId: "${account[i]}-aws-secret-key-id", variable: 'secret_key'),
                                         string(credentialsId: "${account[i]}-s3-bucket", variable: 's3_bucket')]) {
                         env.account_name = "${account[i]}"
-                        sh 'python3 jenkins/poc/haim/common/run_tagging.py'
+                        sh 'python3 jenkins/poc/haim/common/run_cost_policies.py'
+                                        }
+                    }
+                }
+            }
+        }
+        stage('Run Policies the Daily polices') {
+            steps {
+                 script {
+                    for (int i = 0; i < account.size(); ++i) {
+                        echo "Running for account ${account[i].toUpperCase()}"
+                        withCredentials([string(credentialsId: "${account[i]}-aws-access-key-id", variable: 'access_key'),
+                                        string(credentialsId: "${account[i]}-aws-secret-key-id", variable: 'secret_key'),
+                                        string(credentialsId: "${account[i]}-s3-bucket", variable: 's3_bucket')]) {
+                        env.account_name = "${account[i]}"
+                        sh 'python3 jenkins/poc/haim/common/run_policies.py'
                                         }
                     }
                 }
@@ -60,3 +79,10 @@ pipeline {
           }
     }
 }
+
+
+
+
+
+
+
