@@ -91,6 +91,7 @@ class EnvironmentVariables:
         self._environment_variables_dict['AZURE_CLIENT_ID'] = EnvironmentVariables.get_env('AZURE_CLIENT_ID', '')
         self._environment_variables_dict['AZURE_TENANT_ID'] = EnvironmentVariables.get_env('AZURE_TENANT_ID', '')
         self._environment_variables_dict['AZURE_CLIENT_SECRET'] = EnvironmentVariables.get_env('AZURE_CLIENT_SECRET', '')
+        self._environment_variables_dict['AZURE_SUBSCRIPTION_ID'] = EnvironmentVariables.get_env('AZURE_SUBSCRIPTION_ID', '')
         if self._environment_variables_dict['AZURE_CLIENT_ID'] and self._environment_variables_dict['AZURE_TENANT_ID']\
                 and self._environment_variables_dict['AZURE_CLIENT_SECRET']:
             self._environment_variables_dict['PUBLIC_CLOUD_NAME'] = 'AZURE'
@@ -211,9 +212,8 @@ class EnvironmentVariables:
             int(EnvironmentVariables.get_env('DEFAULT_ROUND_DIGITS', '3'))
         self._environment_variables_dict['ATHENA_DATABASE_NAME'] = EnvironmentVariables.get_env('ATHENA_DATABASE_NAME', '')
         self._environment_variables_dict['ATHENA_TABLE_NAME'] = EnvironmentVariables.get_env('ATHENA_TABLE_NAME', '')
-
-
-
+        self._environment_variables_dict['ATHENA_ACCOUNT_ACCESS_KEY'] = EnvironmentVariables.get_env('ATHENA_ACCOUNT_ACCESS_KEY', '')
+        self._environment_variables_dict['ATHENA_ACCOUNT_SECRET_KEY'] = EnvironmentVariables.get_env('ATHENA_ACCOUNT_SECRET_KEY', '')
 
     @staticmethod
     def to_bool(arg, def_val: bool = None):

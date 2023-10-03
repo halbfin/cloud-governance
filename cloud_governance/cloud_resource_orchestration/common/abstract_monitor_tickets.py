@@ -35,7 +35,7 @@ class AbstractMonitorTickets(ABC):
         self.__mail_message = MailMessage()
         self.__postfix = Postfix()
 
-    def __get_all_in_progress_tickets(self, account_name: str = '', cloud_name: str = '', fields: list = None):
+    def _get_all_in_progress_tickets(self, account_name: str = '', cloud_name: str = '', fields: list = None):
         """
         This method returns all in-progress tickets
         :param account_name:
@@ -77,12 +77,22 @@ class AbstractMonitorTickets(ABC):
         """
         raise NotImplemented("This method is not implemented")
 
+    @abstractmethod
+    def update_cluster_cost(self):
+        """
+        This method updates the cluster cost.
+        :return:
+        :rtype:
+        """
+        raise NotImplemented("This method is not implemented")
+
     @logger_time_stamp
-    def extend_tickets_budget(self, ticket_id: str, region_name: str):
+    def extend_tickets_budget(self, ticket_id: str, region_name: str, current_budget: int = 0):
         """
         This method extends the ticket budget if any
         :param ticket_id:
         :param region_name:
+        :param current_budget:
         :return:
         """
         ticket_extended = False
@@ -92,6 +102,9 @@ class AbstractMonitorTickets(ABC):
             if string_equal_ignore_case(self.__cloud_name, 'AWS'):
                 self.update_budget_tag_to_resources(region_name=region_name, ticket_id=ticket_id,
                                                     updated_budget=total_budget_to_extend)
+                update_data = {'estimated_cost': int(current_budget) + int(total_budget_to_extend)}
+                self.__es_operations.update_elasticsearch_index(index=self.__es_index_cro, metadata=update_data,
+                                                                id=ticket_id)
                 for sub_ticket_id in sub_ticket_ids:
                     self.__jira_operations.move_issue_state(ticket_id=sub_ticket_id, state='closed')
                 logger.info(f'Updated the budget of the ticket: {ticket_id}')
@@ -102,7 +115,7 @@ class AbstractMonitorTickets(ABC):
 
     @typeguard.typechecked
     @logger_time_stamp
-    def extend_ticket_duration(self, ticket_id: str, region_name: str):
+    def extend_ticket_duration(self, ticket_id: str, region_name: str, current_duration: int = 0):
         """
         This method extends the duration of the ticket if any
         :param ticket_id:
@@ -116,6 +129,9 @@ class AbstractMonitorTickets(ABC):
             if string_equal_ignore_case(self.__cloud_name, 'AWS'):
                 self.update_duration_tag_to_resources(region_name=region_name, ticket_id=ticket_id,
                                                       updated_duration=total_duration_to_extend)
+                update_data = {'duration': int(current_duration) + int(total_duration_to_extend)}
+                self.__es_operations.update_elasticsearch_index(index=self.__es_index_cro, metadata=update_data,
+                                                                id=ticket_id)
                 for sub_ticket_id in sub_ticket_ids:
                     self.__jira_operations.move_issue_state(ticket_id=sub_ticket_id, state='closed')
                 logger.info(f'Updated the Duration of the ticket: {ticket_id}')
@@ -151,7 +167,8 @@ class AbstractMonitorTickets(ABC):
         remaining_duration = duration - completed_duration
         subject = body = None
         if remaining_duration <= FIRST_CRO_ALERT:
-            ticket_extended = self.extend_ticket_duration(ticket_id=ticket_id, region_name=region_name)
+            ticket_extended = self.extend_ticket_duration(ticket_id=ticket_id, region_name=region_name,
+                                                          current_duration=duration)
             if not ticket_extended:
                 if remaining_duration == FIRST_CRO_ALERT:
                     subject, body = self.__mail_message.cro_monitor_alert_message(user=user, days=FIRST_CRO_ALERT, ticket_id=ticket_id)
@@ -183,8 +200,9 @@ class AbstractMonitorTickets(ABC):
         remaining_budget = budget - used_budget
         threshold_budget = budget - (budget * (self.__ticket_over_usage_limit / 100))
         subject = body = None
-        if threshold_budget >= remaining_budget >= 0:
-            ticket_extended = self.extend_tickets_budget(ticket_id=ticket_id, region_name=region_name)
+        if threshold_budget >= remaining_budget:
+            ticket_extended = self.extend_tickets_budget(ticket_id=ticket_id, region_name=region_name,
+                                                         current_budget=budget)
             if not ticket_extended:
                 subject, body = self.__mail_message.cro_monitor_budget_remain_alert(user=user, budget=budget,
                                                                                     ticket_id=ticket_id,
@@ -205,7 +223,7 @@ class AbstractMonitorTickets(ABC):
         This method monitors in-progress tickets
         :return:
         """
-        in_progress_tickets_list = self.__get_all_in_progress_tickets()
+        in_progress_tickets_list = self._get_all_in_progress_tickets()
         for ticket_data in in_progress_tickets_list:
             source_data = ticket_data.get('_source')
             if source_data:
@@ -232,3 +250,4 @@ class AbstractMonitorTickets(ABC):
         :return:
         """
         self._monitor_in_progress_tickets()
+        self.update_cluster_cost()
